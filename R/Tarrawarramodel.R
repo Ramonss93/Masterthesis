@@ -13,27 +13,33 @@ setwd("D:/Droesen/Master thesis/Research/Downscaling_soilmoisture")
 #Read soil moisture table with terrain attributes Aspect, Slope, (3x) Curvature, Wetness index, Contributing area, relative elevation
 read.csv("data/SM_Tarra_all.csv") -> SM_TAR_all
 
+#stack all terrain attributes
+list.files(pattern = glob2rx('LC8*.grd'), full.names = TRUE)
+terrainatts <- list.files(path = 'D:/Droesen/Master thesis/Research/Resultaat/Wuestebach', pattern = glob2rx('*.tif'), full.names = TRUE) 
+?list.files
 #Average per time
-subset(SM_TAR_all, FIELD_1==11, select=c("FIELD_1", "FIELD_2",  "FIELD_3",	"FIELD_4"))  -> subT11TARSM
+subT11TARSM <- subset(SM_TAR_all, FIELD_1==11, select=c("FIELD_1", "FIELD_2",  "FIELD_3",	"FIELD_4"))
 
+
+## preprocessing Tarra
+
+#script for selecting the dates to measure 
 listofmeasures <- split(SM_TAR_all, SM_TAR_all$FIELD_1)
-lapply(listofmeasures$FIELD_4, mean)
-listofmeasures$FIELD_4[[1]]
-library(data.table)
 
-agg <- aggregate(SM_TAR_all, FUN=mean, data = SM_TAR_all$FIELD_4)
 i <- 1
 for (day in listofmeasures) {
-  SM_TAR_all$sm_avg <- mean(day$FIELD_4)
+  listofmeasures[[i]]$sm_avg <- mean(listofmeasures[[i]]$FIELD_4, na.rm = TRUE)
+  listofmeasures[[i]]$sm_var <- var(listofmeasures[[i]]$FIELD_4, na.rm = TRUE)
+  listofmeasures[[i]]$sm_sd <- sd(listofmeasures[[i]]$FIELD_4, na.rm = TRUE)
   i <- i + 1
 }
 
-unsplit(lapply(split(SM_TAR_all, SM_TAR_all$FIELD_1), mean))
+oneframe <- do.call(rbind.data.frame, listofmeasures)
 
-listofmeasures[[1]]
-head(listofmeasures)
+maximumvar <- subset(oneframe, oneframe$sm_var == max(oneframe$sm_var))
+minumumavg <- subset(oneframe, oneframe$sm_avg == min(oneframe$sm_avg))
+maximumavg <- subset(oneframe, oneframe$sm_avg == max(oneframe$sm_avg))
 
-mean(listofmeasures[[1]]$FIELD_4)
 
 #documentation about getting terrain attributes
 weightingraster <- raster("data/ktar.map")

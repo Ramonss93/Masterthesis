@@ -26,6 +26,8 @@ weightingraster <- raster("data/kwuest.map")
 prj_string <- "+proj=tmerc +lat_0=0 +lon_0=6 +k=1 +x_0=2500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7"
 weightingraster[weightingraster==0] <- NA
 
+
+
 #plot soil moisture weighting map
 colfunc1 <- colorRampPalette(c("red","orange", "yellow", "green", "blue", "darkblue","purple"))
 plot(weightingraster, col=colfunc1(255), main="Soil moisture content")
@@ -54,10 +56,6 @@ library(leaflet)
 ?leaflet
 leaflet(data = points)
 
-m <- leaflet(points)
-m <- addMarkers(points)
-m
-?leaflet
 weightings <- extract(weightingraster, points1, sp=FALSE, df=TRUE)
 df$ID<-seq.int(nrow(df))
 merged<- merge(df, weightings, by.df = ID, by.weightings = ID)

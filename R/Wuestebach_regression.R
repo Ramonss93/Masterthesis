@@ -2,25 +2,90 @@ library(lubridate)
 library(plyr)
 library(openair)
 library(ggplot2)
+library(xts)
+library(raster)
 
 rm(list=ls())
 
-setwd("D:/Droesen/Master thesis/Rscripts/Downscaling_soilmoisture")
+setwd("D:/Droesen/Master thesis/Research/Downscaling_soilmoisture")
 
-SMWuest_xy <- read.csv("data/SMwuest_20cm.csv")
+SMWuest_xy <- read.csv("data/Wüstebach/SMwuest_50cm.csv")
+
+#script for selecting the dates to measure 
+listofmeasures <- split(SMWuest_xy, SMWuest_xy$timestampto)
+
+
+
+
+i <- 1
+for (day in listofmeasures) {
+  listofmeasures[[i]]$sm_avg <- mean(listofmeasures[[i]]$daily_mean_SM, na.rm = TRUE)
+  listofmeasures[[i]]$sm_var <- var(listofmeasures[[i]]$daily_mean_SM, na.rm = TRUE)
+  listofmeasures[[i]]$sm_sd <- sd(listofmeasures[[i]]$daily_mean_SM, na.rm = TRUE)
+  i <- i + 1
+}
+head(listofmeasures[[1]])
+oneframe <- do.call(rbind.data.frame, listofmeasures)
+
+countdays <- ddply(oneframe,~timestampto,summarise,distinct_orders=length(unique(Id)))
+
+head(countdays)
+
+datescorrect <- countdays[countdays$distinct_orders > 130,]
+
+
+
+merged <- merge(oneframe, datescorrect, by="timestampto")
+
+#select year 2011
+n = length(merged$sm_var)
+sort(merged$sm_var,partial=n-450)[n-450]
+
+#select driest and wettest
+maximumvar <- subset(merged, merged$sm_var == max(merged$sm_var))
+minumumavg <- subset(merged, merged$sm_avg == min(merged$sm_avg))
+maximumavg <- subset(merged, merged$sm_avg == max(merged$sm_avg))
+
+head(maximumavg)
+
+write.csv(maximumvar, file = "temp/WuestMaxVar50.csv")
+
+write.csv(minumumavg, file = "temp/WuestMinAvg50.csv")
+
+write.csv(maximumavg, file = "temp/WuestMaxAvg50.csv")
+
+
+plot(oneframe$timestampto, oneframe$sm_avg)
+
+# terrain attributes (tif files in data folder)
+terrainatts <- list.files(path = 'D:/Droesen/Master thesis/Research/Resultaat/Wuestebach', pattern = glob2rx('*.tif'), full.names = TRUE) 
+terrainstack <- stack(terrainatts[2:10])
 
 
 
 #unnecessary to plot dates
 #SMWuest_xy$timestampto <- as.Date( as.character(SMWuest_xy$timestampto), "%Y-%m-%d")
-prj_string <- 
+prj_string <- "+proj=tmerc +lat_0=0 +lon_0=6 +k=1 +x_0=2500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7"
 subset(SMWuest_xy, timestampto == "2009-09-01", select=c("Id", "timestampto", "daily_mean_SM", "X.coord", "Y.coord")) -> SMWUEST_1min
-head(SMWUEST_1min)
-xy <- SMWUEST_1min[4:5]
-df <- SMWUEST_1min[3]
+
+xy <- maximumvar[6:7]
+df <- maximumvar[5]
 
 points <- SpatialPointsDataFrame(xy, df, proj4string = CRS(prj_string))
 points1 <- SpatialPoints(points)
+terrainpoints <- extract(terrainstack, points, sp=TRUE)
+
+mergedpoints <- merge(points, terrainpoints)
+frame <- data.frame(mergedpoints)
+lm(frame[,("Wuest_carea")]~frame[,("daily_mean_SM")]) -> comWIwuesthigh #Slope and SM, 27 september
+
+plot(frame[1], frame[3])
+
+SM_wuest_mod$residModProfileC <- resid(WmodPprofileCurv)
+
+write.csv(SM_wuest_mod, file="D:/Droesen/Resultaat/Wuestebach/SM_Wuest_residuals")
+
+v1 <- variog(coords = ozone[,3:4], data = ozone[,2], breaks = breaks)
 
 
 subset(SMWuest_xy, timestampto == "2009-11-01", select=c("Id", "timestampto", "daily_mean_SM", "X.coord", "Y.coord")) -> SMWUEST_1max
@@ -209,6 +274,9 @@ SM_wuest_mod$residModPlanC <- resid(WmodPlanC)
 SM_wuest_mod$residModProfileC <- resid(WmodPprofileCurv)
 
 write.csv(SM_wuest_mod, file="D:/Droesen/Resultaat/Wuestebach/SM_Wuest_residuals")
+
+v1 <- variog(coords = ozone[,3:4], data = ozone[,2], breaks = breaks)
+
 
 #R squared
 summary(Wmodmod)$r.squared #R-squared T6 wetness                                      
